@@ -1,0 +1,365 @@
+{
+  "name": "commitwise",
+  "displayName": "Commitwise: AI Commit Messages with Claude",
+  "description": "AI git commit messages from your Claude subscription (Pro/Max) via Claude Code. No API key. Follows your team's guidelines, scans for secrets, and splits big changes into logical commits.",
+  "version": "0.3.0",
+  "publisher": "safwanmamji",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "AI"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "commitwise.generate",
+        "title": "Generate Commit Message",
+        "category": "Commitwise",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "commitwise.generateOptions",
+        "title": "Generate Commit Message Options\u2026",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.splitCommits",
+        "title": "Split Changes into Commits\u2026",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.createGuidelines",
+        "title": "Create Commit Guidelines File",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.guidelinesFromHistory",
+        "title": "Generate Guidelines from Commit History",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.prDescription",
+        "title": "Generate PR Description",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.checkSetup",
+        "title": "Check Setup",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.installClaude",
+        "title": "Install Claude Code",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.signIn",
+        "title": "Sign In to Claude Code",
+        "category": "Commitwise"
+      },
+      {
+        "command": "commitwise.openWalkthrough",
+        "title": "Getting Started",
+        "category": "Commitwise"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "commitwise.generate",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        },
+        {
+          "command": "commitwise.generateOptions",
+          "group": "commitwise@1",
+          "when": "scmProvider == git"
+        },
+        {
+          "command": "commitwise.splitCommits",
+          "group": "commitwise@2",
+          "when": "scmProvider == git"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "commitwise.generate",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.generateOptions",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.splitCommits",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.createGuidelines",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.guidelinesFromHistory",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.prDescription",
+          "when": "config.git.enabled"
+        },
+        {
+          "command": "commitwise.checkSetup",
+          "when": "true"
+        },
+        {
+          "command": "commitwise.installClaude",
+          "when": "true"
+        },
+        {
+          "command": "commitwise.signIn",
+          "when": "true"
+        },
+        {
+          "command": "commitwise.openWalkthrough",
+          "when": "true"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Commitwise",
+      "properties": {
+        "commitwise.claudePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Absolute path to the `claude` executable. Leave empty to auto-detect (PATH, common install locations, then the Claude Code VS Code extension)."
+        },
+        "commitwise.model": {
+          "type": "string",
+          "default": "haiku",
+          "markdownDescription": "Model passed to `claude --model` (an alias such as `haiku`, `sonnet`, `opus`, or a full model name)."
+        },
+        "commitwise.mode": {
+          "type": "string",
+          "enum": [
+            "fast",
+            "agent"
+          ],
+          "default": "agent",
+          "enumDescriptions": [
+            "Send a filtered, size-capped diff to Claude with no tools. Quick and predictable.",
+            "Like asking Claude Code in chat: Claude inspects the repo itself with read-only tools (git status/diff/log/show, read and search files). Slower but more thorough. Applies to \"Generate Commit Message\"."
+          ],
+          "markdownDescription": "How **Generate Commit Message** works. `agent` (default) gives chat-quality messages: Claude explores the changes itself with read-only tools (it can't edit files or run other commands; `.env` and key files are blocked). `fast` sends a trimmed diff to `commitwise.model` and takes a few seconds."
+        },
+        "commitwise.agentModel": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model for agent mode. Empty = your Claude Code default model (the same one chat uses)."
+        },
+        "commitwise.agentTimeoutSeconds": {
+          "type": "number",
+          "default": 180,
+          "minimum": 30,
+          "description": "Stop an agent-mode run after this many seconds."
+        },
+        "commitwise.timeoutSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "description": "Stop the Claude CLI if it has not answered after this many seconds."
+        },
+        "commitwise.guidelinesPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Custom guidelines file, relative to the repository root. Checked before `COMMIT_GUIDELINES.md`, `.github/commit-guidelines.md` and `.vscode/commit-guidelines.md`."
+        },
+        "commitwise.guidelinesMaxBytes": {
+          "type": "number",
+          "default": 16000,
+          "minimum": 1000,
+          "description": "Guidelines beyond this size are ignored (a warning is logged)."
+        },
+        "commitwise.useHistoryStyle": {
+          "type": "boolean",
+          "default": true,
+          "description": "When there is no guidelines file, copy the style of the repository's recent commits."
+        },
+        "commitwise.historyCommitCount": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "description": "Number of recent non-merge commits used as style examples."
+        },
+        "commitwise.ignoreGlobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.lock",
+            "**/package-lock.json",
+            "**/pnpm-lock.yaml",
+            "**/yarn.lock",
+            "**/pubspec.lock",
+            "**/*.g.dart",
+            "**/*.freezed.dart",
+            "**/*.mocks.dart",
+            "**/*.min.js",
+            "**/*.map",
+            "**/dist/**",
+            "**/build/**"
+          ],
+          "markdownDescription": "Files whose contents are not sent to Claude (their names still are). Binary files are always excluded."
+        },
+        "commitwise.maxDiffChars": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 2000,
+          "description": "Total diff characters sent to Claude. Larger diffs are shortened per file."
+        },
+        "commitwise.ticketRegex": {
+          "type": "string",
+          "default": "[A-Z][A-Z0-9]+-\\d+",
+          "markdownDescription": "Regex for a ticket ID in the branch name (e.g. `feature/ABC-123-login` \u2192 `ABC-123`). Empty to disable."
+        },
+        "commitwise.useUnstagedIfNothingStaged": {
+          "type": "boolean",
+          "default": true,
+          "description": "When nothing is staged, describe unstaged and untracked changes instead."
+        },
+        "commitwise.secretScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan added lines for secrets before anything is sent to Claude."
+        },
+        "commitwise.optionsCount": {
+          "type": "number",
+          "default": 3,
+          "minimum": 2,
+          "maximum": 10,
+          "description": "Number of alternatives offered by \"Generate Commit Message Options\u2026\"."
+        },
+        "commitwise.runInRepoDirectory": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Run the CLI inside the repository so it loads the project's `CLAUDE.md` and project settings. Off by default: the CLI runs in a neutral temp directory and loads no settings files."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "commitwise.gettingStarted",
+        "title": "Get started with Commitwise",
+        "description": "Generate commit messages with your Claude subscription in under a minute.",
+        "steps": [
+          {
+            "id": "install",
+            "title": "Install Claude Code",
+            "description": "Commitwise uses your Claude subscription through the Claude Code CLI. No API key needed.\n[Install Claude Code](command:commitwise.installClaude)\n[Check Setup](command:commitwise.checkSetup)",
+            "media": {
+              "markdown": "media/walkthrough/install.md"
+            },
+            "completionEvents": [
+              "onContext:commitwise.cliInstalled"
+            ]
+          },
+          {
+            "id": "signin",
+            "title": "Sign in once",
+            "description": "Uses the account Claude Code is signed in to.\n[Sign In](command:commitwise.signIn)\n[Check Setup](command:commitwise.checkSetup)",
+            "media": {
+              "markdown": "media/walkthrough/signin.md"
+            },
+            "completionEvents": [
+              "onContext:commitwise.signedIn"
+            ]
+          },
+          {
+            "id": "generate",
+            "title": "Click \u2728 in Source Control",
+            "description": "Make a change, open Source Control and click the sparkle.\n[Open Source Control](command:workbench.view.scm)",
+            "media": {
+              "markdown": "media/walkthrough/generate.md"
+            },
+            "completionEvents": [
+              "onCommand:commitwise.generate"
+            ]
+          },
+          {
+            "id": "customize",
+            "title": "Make it yours (optional)",
+            "description": "Team guidelines, history-based rules, and speed vs depth.\n[Create Guidelines File](command:commitwise.createGuidelines)\n[Open Settings](command:workbench.action.openSettings?%5B%22commitwise%22%5D)",
+            "media": {
+              "markdown": "media/walkthrough/customize.md"
+            },
+            "completionEvents": [
+              "onCommand:commitwise.createGuidelines"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "npm run check-types && npm run lint && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npm run check-types && npm run lint && node esbuild.mjs --production",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src test",
+    "compile-tests": "tsc -p tsconfig.test.json",
+    "test:unit": "npm run compile-tests && mocha \"out/test/unit/**/*.test.js\"",
+    "test:integration": "npm run compile-tests && node esbuild.mjs && node out/test/integration/runTest.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:min": "npm run compile-tests && node esbuild.mjs && VSCODE_TEST_VERSION=1.85.0 node out/test/integration/runTest.js",
+    "vsix": "npx --yes @vscode/vsce@3 package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "npm run package",
+    "test:cursor": "npm run compile-tests && node esbuild.mjs && VSCODE_TEST_EXECUTABLE=/Applications/Cursor.app/Contents/MacOS/Cursor node out/test/integration/runTest.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "1.85.0",
+    "@vscode/test-electron": "^3.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "glob": "^10.5.0",
+    "mocha": "^10.8.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "commit message",
+    "ai",
+    "claude",
+    "claude code",
+    "anthropic",
+    "conventional commits",
+    "scm",
+    "source control"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1A1B2E",
+    "theme": "dark"
+  },
+  "preview": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safwanidrees/commitwise.git"
+  },
+  "bugs": {
+    "url": "https://github.com/safwanidrees/commitwise/issues"
+  },
+  "homepage": "https://github.com/safwanidrees/commitwise#readme"
+}
