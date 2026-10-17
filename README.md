@@ -96,7 +96,7 @@ Your changes and guidelines go to Anthropic **through your own Claude Code CLI u
 
 ## Known limitations
 
-- Windows needs the native `claude.exe` install; the npm `claude.cmd` shim is not supported. Windows and Linux are less tested than macOS.
+- Windows needs the native `claude.exe` install; the npm `claude.cmd` shim is not supported. CI runs the full test suite on macOS and Linux; on Windows it runs unit tests only.
 - Agent mode applies to **Generate Commit Message**; options, splitting and PR descriptions use fast mode.
 - The secret scan is pattern-based and catches common formats, not everything.
 
